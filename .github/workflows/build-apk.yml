@@ -31,8 +31,13 @@ jobs:
 
       - run: flutter pub get
 
-      # connectivity_plus 1.4.0 lacks an Android namespace and breaks the current build.
-      - run: flutter pub upgrade connectivity_plus
+      # connectivity_plus 1.4.0 has no Android namespace, which current Gradle requires.
+      # Add it to the downloaded plugin before building.
+      - name: Patch connectivity_plus namespace
+        run: |
+          f="${PUB_CACHE:-$HOME/.pub-cache}/hosted/pub.dev/connectivity_plus-1.4.0/android/build.gradle"
+          sed -i "s/^android {/android {\n    namespace 'dev.fluttercommunity.plus.connectivity'/" "$f"
+          grep -n "namespace" "$f"
 
       - run: flutter build apk --release
 
