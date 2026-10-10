@@ -28,6 +28,8 @@ jobs:
         run: |
           rm -rf android
           flutter create --platforms=android --org com.example --project-name tele_birr_ui .
+          # Use the older Gradle DSL that the Flutter Gradle plugin supports.
+          echo "android.newDsl=false" >> android/gradle.properties
 
       - run: flutter pub get
 
