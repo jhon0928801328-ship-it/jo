@@ -34,13 +34,36 @@ jobs:
 
       - run: flutter pub get
 
-      # connectivity_plus 1.4.0 has no Android namespace, which current Gradle requires.
-      # Add it to the downloaded plugin before building.
-      - name: Patch connectivity_plus namespace
+      # Older Flutter plugins lack the Android "namespace" that current Gradle requires.
+      # Add it to every plugin that is missing it, using the package name in its manifest.
+      - name: Add missing Android namespaces to plugins
         run: |
-          f="${PUB_CACHE:-$HOME/.pub-cache}/hosted/pub.dev/connectivity_plus-1.4.0/android/build.gradle"
-          sed -i "s/^android {/android {\n    namespace 'dev.fluttercommunity.plus.connectivity'/" "$f"
-          grep -n "namespace" "$f"
+          python3 - <<'EOF'
+          import json, os, re
+          cfg = json.load(open('.dart_tool/package_config.json'))
+          for pkg in cfg['packages']:
+              root = pkg['rootUri']
+              if root.startswith('file://'):
+                  root = root[len('file://'):]
+              root = os.path.normpath(os.path.join('.dart_tool', root))
+              android = os.path.join(root, 'android')
+              manifest = os.path.join(android, 'src', 'main', 'AndroidManifest.xml')
+              for name in ('build.gradle', 'build.gradle.kts'):
+                  gradle = os.path.join(android, name)
+                  if not os.path.isfile(gradle) or not os.path.isfile(manifest):
+                      continue
+                  text = open(gradle).read()
+                  if re.search(r'^\s*namespace\b', text, re.M) or not re.search(r'^\s*android\s*\{', text, re.M):
+                      continue
+                  m = re.search(r'package="([^"]+)"', open(manifest).read())
+                  if not m:
+                      continue
+                  ns = m.group(1)
+                  line = 'namespace = "%s"' % ns if name.endswith('.kts') else "namespace '%s'" % ns
+                  text = re.sub(r'^(\s*)android\s*\{', lambda x: x.group(0) + '\n' + x.group(1) + '    ' + line, text, count=1, flags=re.M)
+                  open(gradle, 'w').write(text)
+                  print('namespace', ns, 'added to', gradle)
+          EOF
 
       - run: flutter build apk --release
 
