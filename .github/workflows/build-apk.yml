@@ -21,10 +21,13 @@ jobs:
           channel: stable
           cache: true
 
-      # Restores any missing generated Android files (e.g. gradle-wrapper.jar).
-      # Existing files are not overwritten.
-      - name: Restore Android scaffolding
-        run: flutter create --platforms=android --project-name tele_birr_ui .
+      # Regenerate the Android folder with the current Flutter template.
+      # The committed Android files were made by an older Flutter and fail
+      # with the current Gradle setup.
+      - name: Regenerate Android scaffolding
+        run: |
+          rm -rf android
+          flutter create --platforms=android --org com.example --project-name tele_birr_ui .
 
       - run: flutter pub get
 
